@@ -117,13 +117,13 @@ impl<'a> VariantStrIter<'a> {
 
     fn impl_get(&self, i: usize) -> &'a str {
         unsafe {
-            let p: *mut libc::c_char = std::ptr::null_mut();
+            let mut p: *mut libc::c_char = std::ptr::null_mut();
             let s = b"&s\0";
             ffi::g_variant_get_child(
                 self.variant.to_glib_none().0,
                 i,
                 s as *const u8 as *const _,
-                &p,
+                &mut p,
                 std::ptr::null::<i8>(),
             );
             let p = std::ffi::CStr::from_ptr(p);
@@ -316,6 +316,21 @@ mod tests {
             iter.last().map(|v| v.get::<String>().unwrap()),
             Some("2".into())
         );
+    }
+
+    #[test]
+    fn test_variant_str_iter_mutable_out_pointer_regression() {
+        let v = Variant::array_from_iter::<String>([
+            "alpha".to_string().to_variant(),
+            "beta".to_string().to_variant(),
+            "gamma".to_string().to_variant(),
+        ]);
+
+        let mut iter = v.array_iter_str().unwrap();
+        assert_eq!(iter.next(), Some("alpha"));
+        assert_eq!(iter.next_back(), Some("gamma"));
+        assert_eq!(iter.nth(0), Some("beta"));
+        assert_eq!(iter.next(), None);
     }
 
     #[test]
